@@ -38,3 +38,5 @@ inputs:
   ha:
     description: Create spare machines that increases app availability (default false)
     default: false
+  build_arg:
+    description: Add build arguments when creating Docker image
