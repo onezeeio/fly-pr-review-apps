@@ -24,7 +24,7 @@ region="${INPUT_REGION:-${FLY_REGION:-iad}}"
 org="${INPUT_ORG:-${FLY_ORG:-personal}}"
 image="$INPUT_IMAGE"
 config="${INPUT_CONFIG:-fly.toml}"
-build_arg="${INPUT_BUILD_ARG}"
+build_arg=""
 
 if ! echo "$app" | grep "$PR_NUMBER"; then
   echo "For safety, this action requires the app's name to contain the PR number."
@@ -54,12 +54,24 @@ if [ -n "$INPUT_POSTGRES" ]; then
   flyctl postgres attach "$INPUT_POSTGRES" --app "$app" || true
 fi
 
+if [ -n "$INPUT_BUILD_ARG" ]; then
+  while IFS= read -r line;
+  do
+    if [ -n "$line" ]; then
+      build_arg=$build_arg" --build-arg $line"
+    fi
+  done << EOF
+$INPUT_BUILD_ARG
+EOF
+fi
+
 # Trigger the deploy of the new version.
 echo "Contents of config $config file: " && cat "$config"
+echo watch this build arg: $build_arg
 if [ -n "$INPUT_VM" ]; then
-  flyctl deploy --config "$config" --app "$app" --build-arg "$build_arg" --regions "$region" --image "$image" --strategy immediate --ha=$INPUT_HA --vm-size "$INPUT_VMSIZE"
+  flyctl deploy --config "$config" --app "$app" $build_arg --regions "$region" --image "$image" --strategy immediate --ha=$INPUT_HA --vm-size "$INPUT_VMSIZE"
 else
-  flyctl deploy --config "$config" --app "$app" --build-arg "$build_arg" --regions "$region" --image "$image" --strategy immediate --ha=$INPUT_HA --vm-cpu-kind "$INPUT_CPUKIND" --vm-cpus $INPUT_CPU --vm-memory "$INPUT_MEMORY"
+  flyctl deploy --config "$config" --app "$app" $build_arg --regions "$region" --image "$image" --strategy immediate --ha=$INPUT_HA --vm-cpu-kind "$INPUT_CPUKIND" --vm-cpus $INPUT_CPU --vm-memory "$INPUT_MEMORY"
 fi
 
 # Make some info available to the GitHub workflow.
